@@ -1,13 +1,13 @@
 // Bloom offline cache. Network first so new versions arrive right away;
 // the cached copy is used when there is no connection.
-const CACHE = "bloom-v4";
+const CACHE = "bloom-v5";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-  "./apple-touch-icon.png?v=3",
-  "./icon-192.png?v=3",
-  "./icon-512.png?v=3",
+  "./apple-touch-icon.png?v=4",
+  "./icon-192.png?v=4",
+  "./icon-512.png?v=4",
 ];
 
 self.addEventListener("install", (e) => {

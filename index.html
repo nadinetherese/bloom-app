@@ -239,6 +239,20 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
 .group-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--sun); margin: 4px 0 -6px; }
 .group-label.plain { color: var(--muted); }
 .list-card .card-head { align-items: center; }
+.list-icon {
+  flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--accent-soft);
+  display: grid; place-items: center; font-size: 18px; line-height: 1;
+}
+.list-icon.big { width: 58px; height: 58px; font-size: 30px; border: 0; padding: 0; cursor: pointer; }
+.title-with-icon { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.list-head { display: flex; align-items: center; gap: 14px; }
+.list-head-text { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+.link-btn { all: unset; cursor: pointer; color: var(--accent); font-weight: 700; font-size: 14px; border-radius: 4px; }
+.link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.icon-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.icon-opt { aspect-ratio: 1; width: 100%; border: 0; border-radius: 50%; background: var(--bg); font-size: 22px; line-height: 1; display: grid; place-items: center; padding: 0; }
+.icon-opt[aria-pressed="true"] { background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent); }
+.chip-emoji { flex: none; font-size: 16px; line-height: 1; }
 .list-card .card-btn { flex: 1; min-width: 0; }
 .list-card.pinned { box-shadow: var(--shadow), inset 3px 0 0 var(--accent); }
 .pinned-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
@@ -792,7 +806,7 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
     let html = isEmpty ? "" : backupNudge() + briefing();
     const pins = S.lists.filter((l) => l.pinned);
     if (pins.length) html += `<div class="pinned-row" aria-label="Angepinnte Listen">${pins.map((l) =>
-      `<button class="pin-chip" data-act="open-pinned" data-id="${l.id}">${ICON.pin}<span>${esc(l.name)}</span><span class="n">${l.items.filter((i) => !i.done).length}</span></button>`).join("")}</div>`;
+      `<button class="pin-chip" data-act="open-pinned" data-id="${l.id}"><span class="chip-emoji" aria-hidden="true">${esc(listIcon(l))}</span><span>${esc(l.name)}</span><span class="n">${l.items.filter((i) => !i.done).length}</span></button>`).join("")}</div>`;
     html += addTodoForm("todo-title") + `
       <div class="chips" role="group" aria-label="Filter">
         ${[["open", "Offen", open.length], ["today", "Heute fällig", due.length], ["done", "Erledigt", done.length]]
@@ -873,6 +887,38 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
   }
 
   // ---------- views: Listen ----------
+  // List symbols are emoji: picked from presets (like Apple's Reminders) or typed in.
+  // A list without one shows a symbol guessed from its name; new lists store the guess.
+  const LIST_ICONS = ["📝", "🛒", "📚", "✈️", "🧳", "🎁", "🏠", "💼", "🎬", "🍳", "💪", "💡", "🎵", "🐾", "💊", "💰", "🎓", "🌱", "❤️", "⭐", "🌸", "🎉", "🧹", "📦"];
+  const ICON_GUESS = [
+    [/einkauf|supermarkt|lebensmittel|kaufen/i, "🛒"], [/buch|bücher|lesen/i, "📚"], [/pack|koffer/i, "🧳"],
+    [/reise|urlaub|trip/i, "✈️"], [/geschenk|geburtstag|wunsch/i, "🎁"], [/haushalt|putz/i, "🧹"],
+    [/wohnung|zuhause/i, "🏠"], [/arbeit|job|büro|projekt/i, "💼"], [/film|serie|netflix/i, "🎬"],
+    [/rezept|kochen|essen|backen/i, "🍳"], [/sport|training|gym|fitness/i, "💪"], [/idee/i, "💡"],
+    [/musik|song|playlist/i, "🎵"], [/hund|katze|tier/i, "🐾"], [/arzt|medizin|gesundheit/i, "💊"],
+    [/geld|finanz|budget|sparen/i, "💰"], [/uni|schule|lernen|studium/i, "🎓"], [/garten|pflanze/i, "🌱"],
+    [/party|feier/i, "🎉"], [/umzug/i, "📦"],
+  ];
+  const guessIcon = (name) => (ICON_GUESS.find(([re]) => re.test(name)) || [null, "📝"])[1];
+  const listIcon = (l) => l.icon || guessIcon(l.name);
+  const firstGrapheme = (s) => {
+    s = s.trim();
+    if (!s) return "";
+    try { return [...new Intl.Segmenter("de", { granularity: "grapheme" }).segment(s)][0].segment; } catch { return [...s][0]; }
+  };
+  function iconPicker(l) {
+    const cur = listIcon(l);
+    return `<section class="card" aria-label="Symbol wählen">
+      <div class="card-head"><h2>Symbol wählen</h2><button class="del" data-act="icon-picker" aria-label="Symbolauswahl schließen">${ICON.x}</button></div>
+      <div class="icon-grid">${LIST_ICONS.map((e) => `<button class="icon-opt" data-act="set-icon" data-v="${e}" aria-pressed="${e === cur}" aria-label="Symbol ${e}">${e}</button>`).join("")}</div>
+      <form class="add" data-form="icon">
+        <input class="field" id="icon-custom" name="text" placeholder="Eigenes Emoji, z. B. 🧁" autocomplete="off" enterkeyhint="done" required>
+        <button class="btn small">Übernehmen</button>
+      </form>
+      <p class="sub" style="margin:0">Tipp: Auf der iPhone-Tastatur unten links auf 😀 tippen, um ein beliebiges Emoji zu wählen.</p>
+    </section>`;
+  }
+
   function viewLists() {
     const list = ui.list && S.lists.find((l) => l.id === ui.list);
     if (!list) {
@@ -889,7 +935,7 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
         return `<div class="card list-card ${l.pinned ? "pinned" : ""}">
           <div class="card-head">
             <button class="card-btn" data-act="open-list" data-id="${l.id}">
-              <div class="card-head"><h2>${esc(l.name)}</h2><span class="sub">${l.items.length ? `${done} von ${l.items.length}` : "leer"}</span></div>
+              <div class="card-head"><span class="title-with-icon"><span class="list-icon" aria-hidden="true">${esc(listIcon(l))}</span><h2>${esc(l.name)}</h2></span><span class="sub">${l.items.length ? `${done} von ${l.items.length}` : "leer"}</span></div>
               <div class="bar"><i style="width:${pct}%"></i></div>
             </button>
             <button class="star" data-act="pin" data-id="${l.id}" aria-pressed="${!!l.pinned}" aria-label="${l.pinned ? "Nicht mehr anpinnen" : "Anpinnen"}" style="${l.pinned ? "color:var(--accent)" : ""}">${ICON.pin}</button>
@@ -905,6 +951,11 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
     </li>`;
     return `
       <button class="back" data-act="close-list">${ICON.back} Alle Listen</button>
+      <div class="list-head">
+        <button class="list-icon big" data-act="icon-picker" aria-label="Symbol ändern">${esc(listIcon(list))}</button>
+        <div class="list-head-text"><span class="sub">${list.items.length ? `${done.length} von ${list.items.length} erledigt` : "Noch keine Einträge"}</span><button class="link-btn" data-act="icon-picker">Symbol ändern</button></div>
+      </div>
+      ${ui.iconPicker ? iconPicker(list) : ""}
       ${ui.renaming ? `<form class="title-edit" data-form="rename"><input class="field" id="list-rename" name="name" value="${esc(list.name)}" required><button class="btn">Speichern</button></form>` : ""}
       <form class="add" data-form="item">
         <input class="field" id="item-text" name="text" placeholder="Eintrag hinzufügen …" autocomplete="off" enterkeyhint="done" required>
@@ -1462,7 +1513,7 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
     if (!b) return;
     switch (act) {
       case "tab":
-        ui.tab = b.dataset.tab; ui.arm = null; ui.renaming = false; ui.todo = null;
+        ui.tab = b.dataset.tab; ui.arm = null; ui.renaming = false; ui.todo = null; ui.iconPicker = false;
         try { localStorage.setItem(KEY + ":tab", ui.tab); } catch {}
         render(); window.scrollTo(0, 0); return;
       case "filter": ui.filter = b.dataset.f; ui.todo = null; return render();
@@ -1524,7 +1575,7 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
         return;
       }
       case "open-pinned":
-        ui.tab = "lists"; ui.list = id; ui.renaming = false;
+        ui.tab = "lists"; ui.list = id; ui.renaming = false; ui.iconPicker = false;
         try { localStorage.setItem(KEY + ":tab", ui.tab); } catch {}
         render(); window.scrollTo(0, 0); return;
       case "todo-toggle": { const t = findTodo(id); if (t) change(() => toggleTodo(t)); return; }
@@ -1534,8 +1585,10 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
         return;
       }
       case "clear-done": return change(() => { S.todos = S.todos.filter((x) => !x.done); });
-      case "open-list": ui.list = id; ui.renaming = false; render(); window.scrollTo(0, 0); return;
-      case "close-list": ui.list = null; ui.renaming = false; return render();
+      case "open-list": ui.list = id; ui.renaming = false; ui.iconPicker = false; render(); window.scrollTo(0, 0); return;
+      case "icon-picker": ui.iconPicker = !ui.iconPicker; return render();
+      case "set-icon": { const l = curList(); if (l) { ui.iconPicker = false; change(() => { l.icon = b.dataset.v; }); } return; }
+      case "close-list": ui.list = null; ui.renaming = false; ui.iconPicker = false; return render();
       case "rename": ui.renaming = !ui.renaming; render(); if (ui.renaming) $("#list-rename")?.focus(); return;
       case "item-toggle": { const i = curList()?.items.find((x) => x.id === id); if (i) change(() => { i.done = !i.done; }); return; }
       case "clear-items": { const l = curList(); if (l) change(() => { l.items = l.items.filter((x) => !x.done); }); return; }
@@ -1669,7 +1722,8 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
         refocus = ui.tab === "calendar" ? "#cal-todo-title" : "#todo-title";
       }
       if (kind === "sub") { findTodo(f.dataset.id)?.subtasks.push({ id: newId(), text, done: false }); refocus = "#sub-text-" + f.dataset.id; }
-      if (kind === "list") { const l = { id: newId(), name: text, items: [] }; S.lists.push(l); ui.list = l.id; refocus = "#item-text"; }
+      if (kind === "list") { const l = { id: newId(), name: text, icon: guessIcon(text), items: [] }; S.lists.push(l); ui.list = l.id; ui.iconPicker = true; }
+      if (kind === "icon") { const l = curList(); if (l) l.icon = firstGrapheme(text); ui.iconPicker = false; return "Symbol geändert"; }
       if (kind === "item") { curList()?.items.push({ id: newId(), text, done: false }); refocus = "#item-text"; }
       if (kind === "rename") { const l = curList(); if (l) l.name = text; ui.renaming = false; }
       if (kind === "goal") {

@@ -254,6 +254,21 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
 /* Expanded task */
 .detail { padding: 0 12px 14px 52px; display: flex; flex-direction: column; gap: 10px; }
 .sub-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+/* Subtasks shown under a task in the overview */
+.subs-fold { padding: 0 12px 10px 52px; margin-top: -6px; display: flex; flex-direction: column; gap: 2px; }
+.fold-btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; min-height: 30px; font-size: 12.5px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; border-radius: 6px; }
+.fold-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fold-btn svg { width: 14px; height: 14px; transition: transform .15s ease; }
+.fold-btn[aria-expanded="true"] svg { transform: rotate(90deg); }
+.fold-btn .mini { width: 44px; height: 4px; border-radius: 2px; background: var(--accent-soft); overflow: hidden; }
+.fold-btn .mini i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+.inline-subs { list-style: none; margin: 0; padding: 0 0 0 12px; border-left: 2px solid var(--line); display: flex; flex-direction: column; }
+.inline-subs li { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.inline-subs .check.square { width: 22px; height: 22px; }
+.inline-subs .check svg { width: 13px; height: 13px; }
+.sub-text { all: unset; cursor: pointer; flex: 1; min-width: 0; font-size: 15px; overflow-wrap: anywhere; padding-block: 6px; }
+.sub-text:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.inline-subs li.done .sub-text { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
 .sub-rows .row { min-height: 44px; padding: 4px 0; gap: 10px; }
 .detail .add .field { height: 42px; flex-basis: 150px; }
 .detail .add .btn { height: 42px; }
@@ -498,6 +513,9 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
 
   try { const raw = localStorage.getItem(KEY); if (raw) S = normalize(JSON.parse(raw)); } catch {}
   try { const t = localStorage.getItem(KEY + ":tab"); if (t) ui.tab = t; } catch {}
+  // Tasks whose subtask list is collapsed in the overview (open is the default).
+  ui.folded = new Set();
+  try { ui.folded = new Set(JSON.parse(localStorage.getItem(KEY + ":folded") || "[]")); } catch {}
 
   // ---------- helpers ----------
   const $ = (s) => document.querySelector(s);
@@ -716,16 +734,26 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
   function todoRow(x, { planned = false } = {}) {
     const g = x.goalId && goalById(x.goalId);
     const subDone = x.subtasks.filter((s) => s.done).length;
+    const open = ui.todo === x.id && !planned;
+    // Subtasks are listed under the task for quick ticking; the edit view has its own list.
+    const showSubs = x.subtasks.length > 0 && !x.done && !open && !planned;
     const meta = [
       x.done || planned ? "" : dueTag(x.due),
       planned ? `<span class="tag">Geplant</span>` : "",
       x.repeat ? `<span class="tag">↻ ${REPEAT[x.repeat]}</span>` : "",
       x.priority === "hoch" && !x.done ? `<span class="tag prio">Hoch</span>` : "",
       x.priority === "niedrig" && !x.done ? `<span class="tag low">Niedrig</span>` : "",
-      x.subtasks.length ? `<span class="tag">${subDone}/${x.subtasks.length}</span>` : "",
+      x.subtasks.length && !showSubs ? `<span class="tag">${subDone}/${x.subtasks.length}</span>` : "",
       g ? `<span class="tag goal">◎ ${esc(g.title)}</span>` : "",
     ].join("");
-    const open = ui.todo === x.id && !planned;
+    const folded = ui.folded.has(x.id);
+    const subsHtml = showSubs ? `<div class="subs-fold">
+        <button class="fold-btn" data-act="sub-fold" data-id="${x.id}" aria-expanded="${!folded}">${ICON.next}<span>Unteraufgaben ${subDone}/${x.subtasks.length}</span><span class="mini"><i style="width:${Math.round((subDone / x.subtasks.length) * 100)}%"></i></span></button>
+        ${folded ? "" : `<ul class="inline-subs">${x.subtasks.map((s) => `<li class="${s.done ? "done" : ""}">
+          ${checkBtn("sub-toggle", s.id, s.done, s.done ? "Wieder öffnen" : "Erledigt", "square")}
+          <button class="sub-text" data-act="sub-toggle" data-id="${s.id}">${esc(s.text)}</button>
+        </li>`).join("")}</ul>`}
+      </div>` : "";
     return `<li class="row-wrap"><div class="row ${x.done ? "done" : ""}">
         ${planned
           ? `<span class="check planned" aria-hidden="true"></span>`
@@ -733,7 +761,7 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
         <button class="body-btn" data-act="open-todo" data-id="${x.id}" aria-expanded="${open}"><span class="title">${esc(x.title)}</span>${meta.trim() ? `<span class="meta">${meta}</span>` : ""}</button>
         ${x.done || planned ? "" : `<button class="star" data-act="star" data-id="${x.id}" aria-pressed="${isStar(x)}" aria-label="${isStar(x) ? "Nicht mehr heute wichtig" : "Heute besonders wichtig"}">${ICON.star}</button>`}
         ${open ? "" : delBtn("todo", x.id, x.title)}
-      </div>${open ? todoDetail(x) : ""}</li>`;
+      </div>${subsHtml}${open ? todoDetail(x) : ""}</li>`;
   }
 
   function addTodoForm(id, due = "") {
@@ -1467,6 +1495,10 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
         });
       }
       case "open-todo": ui.todo = ui.todo === id ? null : id; return render();
+      case "sub-fold":
+        if (ui.folded.has(id)) ui.folded.delete(id); else ui.folded.add(id);
+        try { localStorage.setItem(KEY + ":folded", JSON.stringify([...ui.folded])); } catch {}
+        return render();
       case "quick-due": {
         const date = quickDate(b.dataset.v), target = b.dataset.target;
         if (target === "new") {

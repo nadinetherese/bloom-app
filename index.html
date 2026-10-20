@@ -171,6 +171,11 @@ textarea.field { height: auto; min-height: 76px; padding: 12px 14px; resize: ver
 .opts { flex-basis: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .opts label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); min-width: 0; }
 .opts .field { flex: none; width: 100%; height: 44px; font-weight: 500; color: var(--ink); font-size: 15px; }
+/* iOS gives date inputs an intrinsic width wider than a half-width column; reset it so all fields line up. */
+input[type="date"].field { -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%; display: block; line-height: 42px; text-align: left; }
+input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
+.quick { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.quick .chip { height: 32px; padding: 0 12px; font-size: 13px; }
 
 /* Chips */
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -541,6 +546,18 @@ textarea.field { height: auto; min-height: 76px; padding: 12px 14px; resize: ver
   const prioOptions = (cur) => Object.entries(PRIO).map(([k, l]) => `<option value="${k}"${sel(k, cur)}>${l}</option>`).join("");
   const isStar = (t) => !t.done && t.star === today();
 
+  // Quick due-date picks; "week" means next Monday. target is "new" (add form) or a task id.
+  const QUICK_DUE = [["Heute", 0], ["Morgen", 1], ["Übermorgen", 2], ["Nächste Woche", "week"], ["Kein Datum", ""]];
+  function quickDate(v) {
+    if (v === "") return "";
+    const t = today();
+    if (v === "week") return addDays(t, (8 - parse(t).getDay()) % 7 || 7);
+    return addDays(t, Number(v));
+  }
+  const quickDue = (target, cur) => `<div class="quick" role="group" aria-label="Fällig am, Schnellauswahl">${QUICK_DUE.map(([l, v]) =>
+    `<button type="button" class="chip" data-act="quick-due" data-target="${target}" data-v="${v}" aria-pressed="${quickDate(v) === cur}">${l}</button>`).join("")}</div>`;
+  const markQuick = (box, cur) => box?.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(quickDate(c.dataset.v) === cur)));
+
   const checkBtn = (act, id, on, label, extra = "") =>
     `<button class="check ${extra}" data-act="${act}" data-id="${id}" aria-pressed="${on}" aria-label="${esc(label)}">${ICON.check}</button>`;
   const delBtn = (kind, id, label) => ui.arm === kind + ":" + id
@@ -686,6 +703,7 @@ textarea.field { height: auto; min-height: 76px; padding: 12px 14px; resize: ver
         <button class="btn soft" aria-label="Unteraufgabe hinzufügen">${ICON.plus}</button>
       </form>
       <div class="opts">
+        ${quickDue(x.id, x.due)}
         <label>Fällig am<input class="field" type="date" id="edit-due-${x.id}" data-edit="due" data-id="${x.id}" value="${x.due}"></label>
         <label>Wiederholen<select class="field" id="edit-repeat-${x.id}" data-edit="repeat" data-id="${x.id}">${Object.entries(REPEAT).map(([k, l]) => `<option value="${k}"${sel(k, x.repeat)}>${l}</option>`).join("")}</select></label>
         <label>Priorität<select class="field" id="edit-prio-${x.id}" data-edit="priority" data-id="${x.id}">${prioOptions(x.priority)}</select></label>
@@ -725,6 +743,7 @@ textarea.field { height: auto; min-height: 76px; padding: 12px 14px; resize: ver
         ${due ? `<input type="hidden" name="due" value="${due}">` : `<button type="button" class="icon-btn" data-act="toggle-opts" aria-expanded="${ui.opts}" aria-label="Datum, Wiederholung, Priorität und Ziel">${ICON.sliders}</button>`}
         <button class="btn" aria-label="Aufgabe hinzufügen">${ICON.plus}</button>
         ${due ? "" : `<div class="opts" ${ui.opts ? "" : "hidden"}>
+          ${quickDue("new", "")}
           <label>Fällig am<input class="field" type="date" id="todo-due" name="due"></label>
           <label>Wiederholen<select class="field" id="todo-repeat" name="repeat">${Object.entries(REPEAT).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></label>
           <label>Priorität<select class="field" id="todo-prio" name="priority">${prioOptions("normal")}</select></label>
@@ -1448,6 +1467,20 @@ textarea.field { height: auto; min-height: 76px; padding: 12px 14px; resize: ver
         });
       }
       case "open-todo": ui.todo = ui.todo === id ? null : id; return render();
+      case "quick-due": {
+        const date = quickDate(b.dataset.v), target = b.dataset.target;
+        if (target === "new") {
+          const inp = $("#todo-due");
+          if (inp) inp.value = date;
+          return markQuick(b.parentElement, date);
+        }
+        const t = findTodo(target);
+        if (t) change(() => {
+          t.due = date || (t.repeat ? today() : "");
+          if (t.due) t.repeatDay = parse(t.due).getDate();
+        });
+        return;
+      }
       case "star": {
         const t = findTodo(id);
         if (t) change(() => { t.star = isStar(t) ? "" : today(); return t.star ? "Für heute als besonders wichtig markiert" : ""; });
@@ -1552,7 +1585,11 @@ textarea.field { height: auto; min-height: 76px; padding: 12px 14px; resize: ver
     }
     return false;
   }
-  document.addEventListener("input", (e) => { if (e.target.id === "backup-in") ui.backupIn = e.target.value; else onColourInput(e.target); });
+  document.addEventListener("input", (e) => {
+    if (e.target.id === "backup-in") ui.backupIn = e.target.value;
+    else if (e.target.id === "todo-due") markQuick(e.target.closest(".opts")?.querySelector(".quick"), e.target.value);
+    else onColourInput(e.target);
+  });
 
   document.addEventListener("change", (e) => {
     if (onColourInput(e.target)) return;

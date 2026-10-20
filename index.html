@@ -282,6 +282,8 @@ textarea.field { height: auto; min-height: 76px; padding: 12px 14px; resize: ver
 
 /* Briefing */
 .brief { background: var(--accent-soft); box-shadow: none; gap: 10px; }
+.nudge { background: var(--sun-soft); box-shadow: none; gap: 8px; }
+.nudge p { margin: 0; }
 .brief h2 { color: var(--ink); }
 .brief ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .brief li { display: grid; grid-template-columns: 74px 1fr; gap: 8px; font-size: 15px; }
@@ -740,7 +742,7 @@ textarea.field { height: auto; min-height: 76px; padding: 12px 14px; resize: ver
     const sets = { open, today: due, done };
     const items = [...sets[ui.filter]].sort(ui.filter === "done" ? (a, b) => (b.doneAt || 0) - (a.doneAt || 0) : sortTodos);
 
-    let html = isEmpty ? "" : briefing();
+    let html = isEmpty ? "" : backupNudge() + briefing();
     const pins = S.lists.filter((l) => l.pinned);
     if (pins.length) html += `<div class="pinned-row" aria-label="Angepinnte Listen">${pins.map((l) =>
       `<button class="pin-chip" data-act="open-pinned" data-id="${l.id}">${ICON.pin}<span>${esc(l.name)}</span><span class="n">${l.items.filter((i) => !i.done).length}</span></button>`).join("")}</div>`;
@@ -1192,6 +1194,27 @@ textarea.field { height: auto; min-height: 76px; padding: 12px 14px; resize: ver
   }
 
   // ---------- backup ----------
+  // Weekly reminder (this copy keeps data only on the device). Counts from the last backup,
+  // or from first use when there has never been one; "Morgen erinnern" hides it for the day.
+  const BACKUP_EVERY_DAYS = 7;
+  const markBackup = () => { try { localStorage.setItem(KEY + ":lastBackup", String(Date.now())); } catch {} render(); };
+  function backupNudge() {
+    if (!STANDALONE) return "";
+    let last = 0, first = 0, snooze = "";
+    try {
+      last = Number(localStorage.getItem(KEY + ":lastBackup")) || 0;
+      first = Number(localStorage.getItem(KEY + ":firstUse")) || 0;
+      snooze = localStorage.getItem(KEY + ":backupSnooze") || "";
+      if (!first) { first = Date.now(); localStorage.setItem(KEY + ":firstUse", String(first)); }
+    } catch { return ""; }
+    const days = Math.floor((Date.now() - (last || first)) / 864e5);
+    if (days < BACKUP_EVERY_DAYS || snooze === today()) return "";
+    return `<section class="card nudge" aria-label="Backup-Erinnerung">
+      <h2>Zeit für ein Backup</h2>
+      <p class="sub">${last ? `Dein letztes Backup ist ${days} Tage her.` : "Du hast noch kein Backup gemacht."} Deine Daten liegen nur auf diesem iPhone. Sichere sie z. B. in iCloud Drive.</p>
+      <div class="actions"><button class="btn small" data-act="backup-file">Jetzt sichern</button><button class="btn small ghost" data-act="backup-snooze">Morgen erinnern</button></div>
+    </section>`;
+  }
   const backupText = () => JSON.stringify({ app: "bloom", v: 2, exported: new Date().toISOString(), state: S });
   function importBackup(raw) {
     let data;
@@ -1464,17 +1487,19 @@ textarea.field { height: auto; min-height: 76px; padding: 12px 14px; resize: ver
       case "backup-copy": {
         const txt = backupText();
         const fallback = () => { ui.backupText = txt; render(); const o = $("#backup-out"); if (o) { o.focus(); o.select(); } toast("Kopieren nicht möglich, bitte den Text unten markieren und kopieren"); };
-        try { navigator.clipboard.writeText(txt).then(() => toast("Backup kopiert"), fallback); } catch { fallback(); }
+        try { navigator.clipboard.writeText(txt).then(() => { markBackup(); toast("Backup kopiert"); }, fallback); } catch { fallback(); }
         return;
       }
       case "backup-file": {
         const file = new File([backupText()], `bloom-backup-${today()}.json`, { type: "application/json" });
-        if (navigator.canShare?.({ files: [file] })) { navigator.share({ files: [file], title: "Bloom-Backup" }).catch(() => {}); return; }
+        if (navigator.canShare?.({ files: [file] })) { navigator.share({ files: [file], title: "Bloom-Backup" }).then(() => { markBackup(); toast("Backup gesichert"); }, () => {}); return; }
         const a = document.createElement("a");
         a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+        markBackup();
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         return;
       }
+      case "backup-snooze": try { localStorage.setItem(KEY + ":backupSnooze", today()); } catch {} return render();
       case "arm-import":
         if (!(ui.backupIn || "").trim()) return toast("Füge zuerst ein Backup ein oder wähle eine Datei.");
         ui.arm = "import"; return render();

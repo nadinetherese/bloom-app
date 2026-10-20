@@ -7,10 +7,7 @@ Persönlicher Planer für To-Dos, Listen, Ziele und Habits – als Web-App fürs
 ## Aufs iPhone
 
 1. Die GitHub-Pages-Adresse in **Safari** öffnen.
-2. https://nadinetherese.github.io/bloom-app/ 
-3. Teilen → **Zum Home-Bildschirm** → Hinzufügen.
-
-4. 
+2. Teilen → **Zum Home-Bildschirm** → Hinzufügen.
 
 Bloom öffnet sich dann im eigenen Fenster mit dem Blüten-Symbol und funktioniert auch offline.
 
@@ -21,5 +18,5 @@ Alle Daten bleiben auf dem Gerät (im Browser-Speicher der App). Unter **Design 
 ## Aufbau
 
 - `index.html` – die komplette App (HTML, CSS, JavaScript, keine Abhängigkeiten außer Google Fonts)
-- `manifest.webmanifest`, `icons/` – Name, Symbol und Vollbild-Modus
+- `manifest.webmanifest`, `*.png` – Name, Symbol und Vollbild-Modus
 - `sw.js` – Offline-Cache

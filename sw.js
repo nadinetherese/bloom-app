@@ -1,6 +1,6 @@
 // Bloom offline cache. Network first so new versions arrive right away;
 // the cached copy is used when there is no connection.
-const CACHE = "bloom-v5";
+const CACHE = "bloom-v6";
 const ASSETS = [
   "./",
   "./index.html",

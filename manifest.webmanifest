@@ -1,0 +1,16 @@
+{
+  "name": "Bloom",
+  "short_name": "Bloom",
+  "description": "Dein persönlicher Planer für To-Dos, Listen, Ziele und Habits.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F4F6F8",
+  "theme_color": "#C2307A",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

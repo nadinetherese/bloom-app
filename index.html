@@ -12,8 +12,8 @@
 <meta name="theme-color" content="#F4F6F8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0C131A" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=5">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=5">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=6">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap">
@@ -557,10 +557,12 @@ input[type="date"].field::-webkit-date-and-time-value { text-align: left; }
   };
   ICON.star = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg>';
   ICON.pin = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 4 3v2H6v-2l4-3z"/><path d="M12 15v6"/></svg>';
-  // Bloom mark: five translucent petals around a solid centre with a check; colours follow the accent tokens.
-  const LOGO = (size) => `<svg class="logo" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true"><g fill="var(--accent)">${
-    [0, 72, 144, 216, 288].map((r) => `<ellipse cx="24" cy="13.5" rx="8.6" ry="9.4" opacity=".38" transform="rotate(${r} 24 24)"/>`).join("")
-  }<circle cx="24" cy="24" r="8.5"/></g><path d="m20 24.2 2.8 2.8 5.4-5.6" fill="none" stroke="var(--accent-ink)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  // Bloom mark (rainbow): five translucent petals, one colour each, around a violet centre with a check.
+  // Same colours as the home-screen icon, so it does not follow the accent colour.
+  const LOGO_PETALS = ["#FF6B8A", "#FFA94D", "#FFD43B", "#51CF8E", "#5C9DFF"];
+  const LOGO = (size) => `<svg class="logo" width="${size}" height="${size}" viewBox="0 0 48 48" aria-hidden="true">${
+    LOGO_PETALS.map((c, i) => `<ellipse cx="24" cy="13.5" rx="8.6" ry="9.4" fill="${c}" opacity=".6" transform="rotate(${i * 72} 24 24)"/>`).join("")
+  }<circle cx="24" cy="24" r="8.5" fill="#8B5CF6"/><path d="m20 24.2 2.8 2.8 5.4-5.6" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   document.querySelector(".logo-slot").innerHTML = LOGO(22);
   ICON.pencil = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>';
   // Inline rename for list items, subtasks, goal steps and habits: one item at a time, keyed "kind:id".
